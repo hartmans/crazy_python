@@ -24,7 +24,8 @@ class ismethod:
     pass
 
 # Solution
-exec(Path('../solutions/test_is_a_method.py').read_text())
+#exec(Path('../solutions/test_is_a_method.py').read_text())
+
 # validation tests
 
 def test_not_method():
