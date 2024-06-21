@@ -1,6 +1,7 @@
 from pathlib import Path
 import dataclasses
 import urllib.parse as url_parse
+import pytest
 
 # For you to complete
 # ----------------------------------------
@@ -19,9 +20,9 @@ class LinuxMachine:
 
     pass # write me
 
-class Webserver:
+class WebServer:
     '''
-    Webservers have Application URIs (in the uri attribute).  The uri is a  urllib.parse.ParseResult, or at least is that type by the time a  Webserver is fully initialized. For convenience, Webservers also take string forms of URIs on initialization.  Webservers raise TypeErrors if the uri doesn't point to the hostname.
+    WebServers have Application URIs (in the uri attribute).  The uri is a  urllib.parse.ParseResult, or at least is that type by the time a  WebServer is fully initialized. For convenience, WebServers also take string forms of URIs on initialization.  WebServers raise TypeErrors if the uri doesn't point to the hostname.
     '''
     pass
 
@@ -33,19 +34,46 @@ def test_dataclass_structure():
     ''' Validate that dataclasses are dataclasses and the schema is as we expect.
     '''
     assert dataclasses.is_dataclass(LinuxMachine)
-    assert dataclasses.is_dataclass(Webserver)
+    assert dataclasses.is_dataclass(WebServer)
     machine_fields = {f.name:f for f in dataclasses.fields(LinuxMachine)}
-    webserver_fields = {f.name:f for f in dataclasses.fields(Webserver)}
+    webserver_fields = {f.name:f for f in dataclasses.fields(WebServer)}
     assert 'hostname' in machine_fields
     assert 'root_password' in machine_fields
     assert  'uri' in webserver_fields
     assert  webserver_fields['uri'].type is url_parse.ParseResult
+    with pytest.raises((TypeError, ValueError)):
+        LinuxMachine() #Hostname should be required
+        
 
 def test_sets_and_friends():
     mailserver = LinuxMachine(hostname='mailserver.example.com')
     mailserver_2 = LinuxMachine(hostname='mailserver.example.com')
-    webserver = Webserver(hostname='example.com', uri='https://example.com/mainpage.aspx')
+    webserver = WebServer(hostname='example.com', uri='https://example.com/mainpage.aspx')
     machines = {webserver, mailserver}
     assert mailserver_2 in machines
-    assert LinuxMachine('example.com') not in machines, 'Webservers are not equal to LinuxMachines'
+    assert LinuxMachine('example.com') not in machines, 'WebServers are not equal to LinuxMachines'
     
+
+def test_uri():
+    with pytest.raises((ValueError, TypeError)):
+        WebServer(hostname='foo.com', uri='https://www.example.com/')
+    w = WebServer(hostname='foo.com', uri='gopher://foo.com/1/archie_instructions') # It is okay to have extra components in the URI
+    assert isinstance(w.uri, url_parse.ParseResult), 'You need to actually turn a string uri into a ParseResult'
+    l = LinuxMachine(hostname='example.com')
+    assert 'example.com' in repr(l), 'I know including the hostname in the repr makes immutibility hard, but it really should be there.'
+    with pytest.raises((ValueError, TypeError, AttributeError)):
+        l.hostname = 'www.example.com' # Hostname needs to be immutible
+    WebServer(hostname='bar.com', uri=url_parse.urlparse('ssh://bar.com/'))
+    
+
+def test_security_audit():
+    l = LinuxMachine(hostname='athena.mit.edu', root_password='profroot')
+    assert 'profroot' not in repr(l), 'Exposing the root password is a finding.'
+    try:
+        l.root_password = 'The password to my luggage is 1234'
+    except Exception:
+        assert True, 'Not being able to change the root password is a finding.'
+    l2 = LinuxMachine(hostname='foo.com')
+    l3 = LinuxMachine(hostname='foo.com')
+    assert l2.root_password != l3.root_password, 'Same initial root password is a finding'
+                      
